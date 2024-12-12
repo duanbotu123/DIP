@@ -8,17 +8,26 @@ general input to output :
 
 
 detailed pipeline:
-```                                
-object_videos -> mask -> mesh -> object gaussian
-                                                │
-interaction_videos -> mask                      │
-                         └──> smplx , object tracking ->object gaussian sequence
-                            └──> smplx_finetune                 │
-                                        │                       |
-humen_videos -> mask -> static human gaussian                   |
-                                        └──>animated human gaussian sequence    
-                                                                └──>HOI gaussian sequence
 ```
+object_videos -> mask -> mesh -> object gaussian
+                                         │
+interaction_videos -> mask               │
+                         └──> object tracking -> object gaussian sequence
+                         │                                          │
+                         │                                          │
+                         └──> smplx                                 │
+                                 └──> smplx_finetune                │
+                                                │                   │
+humen_videos -> mask -> static human gaussian   │                   │
+                              └────────┬────────┘                   │
+                                       │                            │
+                        animated human gaussian sequence            │
+                                       └──────────────┬─────────────┘
+                                                      └──> HOI gaussian sequence
+
+```
+
+
 ## Code Structures
 
 ```
@@ -40,7 +49,7 @@ root/
 ├── pose_finetune/               #  smpl->smpl_finetune
 │   ├── codes              
 │   ├── ...
-│   └── output_smplx   # output smplx files
+│   └── output_smplx   # finetune后的smplx输出目录
 ├── human_recon/                 #  mask+video+smpl_finetune->3dgs
 ├── object_tracking/           #  mask+video->...
 ├──  ...              
