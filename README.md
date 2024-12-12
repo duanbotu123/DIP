@@ -3,6 +3,9 @@
 
 ## Code Structure
 
+general input to output : 
+- videos->human gaussian sequence  + object gaussian sequence
+
 root/
 ├── data/                     # video  （input->output）
 │   ├── env/                 #room environment
