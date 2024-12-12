@@ -38,6 +38,12 @@ root/
 
 ├── pose_finetune/               #  smpl->smpl_finetune
 
+│   ├── codes              
+
+│   ├── ...
+
+│   └── output_smplx   # output smplx files
+
 ├── human_recon/                 #  mask+video+smpl_finetune->3dgs
 
 ├── object_tracking/           #  mask+video->...
