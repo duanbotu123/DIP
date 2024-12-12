@@ -4,15 +4,15 @@
 ## Input-Output
 
 general input to output : 
-- videos->human gaussian sequence  + object gaussian sequence
+- object videos + interaction videos + human videos->human gaussian sequence  + object gaussian sequence
 
 
 detailed pipeline:
 ```
-object_videos -> mask -> mesh -> object gaussian
+object_videos -> mask -> mesh ->static object gaussian
                                          │
 interaction_videos -> mask               │
-                         └──> object tracking -> object gaussian sequence
+                         └──> object tracking ->animated object gaussian sequence
                          │                                          │
                          │                                          │
                          └──> smplx                                 │
@@ -56,7 +56,7 @@ root/
 └──  README.md                       
 ```
 
-## visualization of every steps
+## visualization of final output
 
-![描述](path/to/your/gif)
+![HOI gaussians](path/to/your/gif)
 
