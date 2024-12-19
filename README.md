@@ -1,5 +1,16 @@
 # HOI_Gen
 
+## requirement
+conda create -n hoi_g python=3.10
+
+if no nvcc, download&install cuda toolkit 12.1
+
+conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
+
+cd checkpoints && \
+./download_ckpts.sh && \
+cd ..
+
 ## 协作
 数据集上传&下载
 ```
