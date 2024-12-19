@@ -5,10 +5,10 @@
 for ((i=1; i<=14; i++))
 do
     # 定义文件夹路径
-    image_dir="/data1/hlp/dataset/241129/human/images/$i"
+    image_dir="./../../../test_data/human/images/$i"
     mask_dir="/data1/hlp/dataset/241129/human/mask/$i"
     annots_dir="/data1/hlp/dataset/241129/human/annots/$i"
-    checkpoint_dir="/data1/hlp/workspace/Tracking/sam2/checkpoints/sam2.1_hiera_large.pt"
+    checkpoint_dir="./../checkpoints/sam2.1_hiera_large.pt"
     
     
     # 检查文件夹是否存在
@@ -27,3 +27,5 @@ do
         echo "Skipping folder $i, one or more directories do not exist."
     fi
 done
+
+conda remove --name myenv --all

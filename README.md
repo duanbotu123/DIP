@@ -3,40 +3,38 @@
 ## requirement
 conda create -n hoi_g python=3.10
 
+cd to root dir
+
+## data download 
+wget 
+
+
+## video to images
+pip install opencv-python
+
+python ./pre_processing/data_proc/video2img.py
+
+## easyMocap 2d detection
+
 if no nvcc, download&install cuda toolkit 12.1
 
 conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
+
+python -m pip install -r ./human_tracking/EasyMocap/requirements.txt
+
+cd ./human_tracking/EasyMocap
+
+python setup.py develop
+
+
+## sam2
 
 cd checkpoints && \
 ./download_ckpts.sh && \
 cd ..
 
-## 协作
-数据集上传&下载
-```
-wget 
-```
 
-
-- 更改pipeline细节
-
-- 更改code structure：
-例子
-
-
-- readme 例子
-/pose_finetune
-
-使用：
-python main.py
-
-输入：
-
-
-输出：
-
-
-可视化：
+## human_tracking
 
 
 
