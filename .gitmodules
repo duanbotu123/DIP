@@ -1,0 +1,3 @@
+[submodule "object_recon/gaussian-splatting"]
+	path = object_recon/gaussian-splatting
+	url = https://github.com/graphdeco-inria/gaussian-splatting.git
