@@ -6,7 +6,12 @@
 - 利用blender围绕物体生成相机，并渲染得到多视角图片
 - 生成colmap数据集以进行高斯点云的初始化
 
-`python path\to\blender2colmap.py -- output_path  obj_path`
+`python path/to/blender2colmap.py -- output_path  obj_path`
 
+运行之后会构建colmap数据集:
+
+再运行高斯点云训练代码即可:
+
+`python ./gaussian-splatting/train.py -s colmap_data_dir -m output_path`
 ## 重建结果：
 ![image](./figs/00076.png)
