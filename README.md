@@ -1,10 +1,9 @@
 # HOI_Gen
 
-
 ## Input-Output
 
 general input to output : 
-- object videos + interaction videos + human videos->human gaussian sequence  + object gaussian sequence
+- object gaussian + human-object interaction videos + single human videos-> human-object interaction gaussian sequence
 
 
 detailed pipeline:
