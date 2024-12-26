@@ -9,6 +9,6 @@ _C.*
 outputs/*
 checkpoints/*.pt
 
-
+easymocap.egg-info/
 test_data/
 README2.md
