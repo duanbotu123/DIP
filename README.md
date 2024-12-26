@@ -1,42 +1,5 @@
 # HOI_Gen
 
-## requirement
-conda create -n hoi_g python=3.10
-
-cd to root dir
-
-## data download 
-wget 
-
-
-## video to images
-pip install opencv-python
-
-python ./pre_processing/data_proc/video2img.py
-
-## easyMocap 2d detection
-
-if no nvcc, download&install cuda toolkit 12.1
-
-conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
-
-python -m pip install -r ./human_tracking/EasyMocap/requirements.txt
-
-cd ./human_tracking/EasyMocap
-
-python setup.py develop
-
-
-## sam2
-
-cd checkpoints && \
-./download_ckpts.sh && \
-cd ..
-
-
-## human_tracking
-
-
 
 ## Input-Output
 
