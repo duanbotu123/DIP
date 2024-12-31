@@ -45,7 +45,7 @@ config = {
         'ext': '.jpg'
     },
     'yolo':{
-        'ckpt_path': 'data/models/yolov4.weights',
+        'ckpt_path': './human_tracking/EasyMocap/data/models/yolov4.weights',
         'conf_thres': 0.3,
         'box_nms_thres': 0.5, # means keeping the bboxes that IOU<0.5
         'ext': '.jpg',
