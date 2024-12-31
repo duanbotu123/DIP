@@ -1,0 +1,1 @@
+Namespace(data_device='cuda', eval=True, images='images', model_path='./output/ba2998eb-4', resolution=-1, sh_degree=3, source_path='/data_b/llc/Gausstree/gs_exp/data/nerf_synthetic/ficus', white_background=False)

@@ -1,0 +1,1 @@
+Namespace(data_device='cuda', eval=True, images='images', model_path='./output/11bf3ca6-c', resolution=-1, sh_degree=3, source_path='/data_b/llc/Gausstree/gs_exp/data/nerf_synthetic/mic', white_background=False)
