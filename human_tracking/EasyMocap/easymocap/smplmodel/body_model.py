@@ -157,7 +157,12 @@ class SMPLlayer(nn.Module):
             self.register_buffer('j_J_regressor', j_J_regressor)
         if self.model_type == 'smplh':
             # load smplh data
-            self.num_pca_comps = kwargs['num_pca_comps']
+            # self.num_pca_comps = kwargs['num_pca_comps']
+            # self.use_pca = kwargs['use_pca']
+            # self.use_flat_mean = kwargs['use_flat_mean']
+            self.num_pca_comps = 6            
+            self.use_pca = False            
+            self.use_flat_mean = True
             from os.path import join
             for key in ['LEFT', 'RIGHT']:
                 left_file = join(kwargs['mano_path'], 'MANO_{}.pkl'.format(key))
@@ -167,16 +172,17 @@ class SMPLlayer(nn.Module):
                 self.register_buffer('mHandsMean'+key[0], val)
                 val = to_tensor(to_np(data['hands_components'][:self.num_pca_comps, :]), dtype=dtype)
                 self.register_buffer('mHandsComponents'+key[0], val)
-            self.use_pca = kwargs['use_pca']
-            self.use_flat_mean = kwargs['use_flat_mean']
             if self.use_pca:
                 self.NUM_POSES = 66 + self.num_pca_comps * 2
             else:
                 self.NUM_POSES = 66 + 15 * 3 * 2
         elif self.model_type == 'mano':
-            self.num_pca_comps = kwargs['num_pca_comps']
-            self.use_pca = kwargs['use_pca']
-            self.use_flat_mean = kwargs['use_flat_mean']
+            # self.num_pca_comps = kwargs['num_pca_comps']
+            # self.use_pca = kwargs['use_pca']
+            # self.use_flat_mean = kwargs['use_flat_mean']
+            self.num_pca_comps = 6            
+            self.use_pca = False            
+            self.use_flat_mean = True
             if self.use_pca:
                 self.NUM_POSES = self.num_pca_comps + 3
             else:

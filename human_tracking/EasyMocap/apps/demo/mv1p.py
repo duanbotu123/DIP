@@ -10,6 +10,7 @@ from easymocap.smplmodel import check_keypoints, load_model, select_nf
 from easymocap.mytools import simple_recon_person, Timer, projectN3
 from easymocap.pipeline import smpl_from_keypoints3d2d
 import os
+os.environ['PYOPENGL_PLATFORM'] = 'egl'
 from os.path import join
 import numpy as np
 
