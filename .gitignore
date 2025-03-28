@@ -136,3 +136,4 @@ README2.md
 
 tracking.zip
 *.pkl
+*.gradio

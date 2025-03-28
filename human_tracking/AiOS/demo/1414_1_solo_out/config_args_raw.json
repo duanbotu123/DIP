@@ -1,0 +1,32 @@
+{
+  "config_file": "config/aios_smplx_inference.py",
+  "options": {
+    "batch_size": 8,
+    "epochs": 100,
+    "lr_drop": 55,
+    "num_body_points": 17,
+    "backbone": "resnet50"
+  },
+  "output_dir": "demo/1414_1_solo_out",
+  "device": "cuda",
+  "seed": 42,
+  "resume": "data/checkpoint/aios_checkpoint.pth",
+  "pretrain_model_path": null,
+  "finetune_ignore": null,
+  "start_epoch": 0,
+  "eval": true,
+  "num_workers": 0,
+  "test": false,
+  "debug": false,
+  "find_unused_params": false,
+  "save_log": false,
+  "to_vid": true,
+  "inference": true,
+  "rank": 0,
+  "local_rank": 0,
+  "amp": false,
+  "inference_input": "demo/1414_1_solo.mp4",
+  "world_size": 1,
+  "gpu": 0,
+  "distributed": true
+}
