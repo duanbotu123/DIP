@@ -1,11 +1,15 @@
 import json
+from turtle import st
 from openai import OpenAI
 from typing import Dict, List
 import random
 import re
 import os
+import pandas as pd
 
-object_list = ["小箱子","望远镜","棒球棍","瓶子","毛绒玩具","篮球","显示器", "书","笔记本电脑","手机","键盘","苹果","香蕉","西瓜","辣椒","蘑菇", "盆", "马克杯","浇水壶","茶壶","相机","望远镜","锤子", "橡皮鸭", "小猪存钱罐", "杯子", "大箱子", "中箱子", "旅行箱" ,"椅子", "球形瑜伽球","花生形瑜伽球","垃圾桶","凳子","旅行箱","簸箕","花盆","圆柱", "金字塔玩具"]
+
+object_list = ["小箱子","望远镜","棒球棍","瓶子","毛绒玩具","篮球","显示器", "书","笔记本电脑","手机","键盘","苹果","香蕉","西瓜","辣椒","蘑菇", "盆", "马克杯","浇水壶","茶壶","相机","望远镜","锤子", "橡皮鸭", "小猪存钱罐", "杯子", "大箱子", "中箱子", "旅行箱" ,"椅子", "球形瑜伽球","花生形瑜伽球","垃圾桶","凳子","旅行箱","簸箕","花盆","木桩玩具","路障玩具"]
+
 
 client = OpenAI(
     base_url="https://api.deepseek.com/",
@@ -25,7 +29,7 @@ system_prompt = '''
 8.  这些动作中需要混合有桌和无桌,简单和复杂,复杂的动作需要占比30%左右。
 9.  需要保证生成的动作符合日常动作，即动作要合理。
 10.  对动作的描述仅限于动作本身并且尽可能精确，动作描述中禁止出现人物的性别、年龄、外貌、身份等信息，禁止使用比喻的修辞手法，禁止出现“好像”，“像”。
-11.  涉及的物体不要发生非刚性形变，如“弯曲”、“拉伸”、“打开书”、“打开箱子”等。
+11.  涉及的物体不要发生非刚性形变，如“弯曲”、“拉伸”、“打开书”、“打开箱子”、“打开笔记本”、“打开旅行箱”等。
 输入的JSON格式：
 {
   "objects": <物体名称列表>,
@@ -39,15 +43,15 @@ system_prompt = '''
     {
         "script1": <英文动作描述>,
         "script2": <中文动作描述>,
-        "with_desk" : <True or False>,
-        "complex": <True or False>
+        "with_desk" : <true or false>,
+        "complex": <true or false>
     },
     "action2":
     {
         "script1": <英文动作描述>,
         "script2": <中文动作描述>,
-        "with_desk" : <True or False>,
-        "complex": <True or False>
+        "with_desk" : <true or false>,
+        "complex": <true or false>
     },
     ...
 }
@@ -66,15 +70,15 @@ EXAMPLE JSON OUTPUT:
     {
     "script1": "The person uses his right hand to move the plate,and then he uses his left hand to  place the apple on the plate.",
     "script2": "一个人用他的右手移动盘子，然后用左手将苹果放到盘子上。",
-    "with_desk": True,
-    "complex": False
+    "with_desk": "true",
+    "complex": "false"
     },
     "action2":
     {
     "script1": "The person uses his right hand to get an apple on the floor, then he stands up, taking a bite of the apple, then place the apple on the plate in his left hand.",
     "script2": "一个人用右手从地上拿起苹果，站起来，吃一口苹果，然后将苹果放到左手拿着的盘子上。",
-    "with_desk": Flase,
-    "complex": True
+    "with_desk": "false",
+    "complex": "true"
     },
     ...
     "action6":
@@ -97,15 +101,15 @@ EXAMPLE JSON OUTPUT:
     {
     "script1": "A person holds a cup with his right hand.",
     "script2": "一个人用右手拿着杯子。",
-    "with_desk": False,
-    "complex": False
+    "with_desk": "false",
+    "complex": "false"
     },
     "action2":
     {
     "script1": "The person repeatedly moves the cup left and right with their left hand, picks up the cup with their right hand to drink tea and then placing it back.",
     "script2": "一个人用左手将杯子反复左右移动，然后用右手拿起杯子喝茶，之后把杯子放回去。",
-    "with_desk": True,
-    "complex": True
+    "with_desk": "true",
+    "complex": "true"
     },
     ...
     "action13":
@@ -113,22 +117,56 @@ EXAMPLE JSON OUTPUT:
     ...
     }
 }
+
+EXAMPLE INPUT:
+{
+    "object": ["西瓜", "苹果", "行李箱"],
+    "number": 13
+}
+
+EXAMPLE JSON OUTPUT:
+{
+    "object_number": 3,
+    "object_list": ["watermelon", "apple", "suitcase"],
+    "action1":
+    {
+    "script1": "A person pushs the suitcase forward, stops, picks up the watermelon, and places it next to the apple on the ground.",
+    "script2": "一个人向前推动旅行箱，停下来，拿起西瓜，然后把它放在地上的苹果旁边。",
+    "with_desk": "false",
+    "complex": "true"
+    },
+    "action2":
+    {
+    "script1": "A person places the suitcase on the ground, puts the watermelon on top of it, and then puts the apple besides the watermelon.",
+    "script2": "一个人把行李箱放在地上，把西瓜放在上面，然后把苹果放在西瓜旁边。",
+    "with_desk": "false",
+    "complex": "false"
+    },
+    ...
+    "action13":
+    {
+    ...
+    }
+}
+
 '''
 
 save_folder = "/home/hlp/data/motion_text"
 
 def choose_object():
-    classify_number = random.randint(1,100)
-    if classify_number <= 20:
-        selected_objects = random.sample(object_list, k=3)
-    elif classify_number > 20 and classify_number <=45:
-        selected_objects = random.sample(object_list, k=2)
-    else:
-        selected_objects = random.sample(object_list, k=1)
+    # classify_number = random.randint(1,100)
+    # if classify_number <= 20:
+    #     selected_objects = random.sample(object_list, k=3)
+    # elif classify_number > 20 and classify_number <=45:
+    #     selected_objects = random.sample(object_list, k=2)
+    # else:
+    #     selected_objects = random.sample(object_list, k=1)
+    # return selected_objects
+    selected_objects = random.sample(object_list, k=2)
     return selected_objects
 
 def process_selection(selected_objects):
-    number = random.randint(10, 15)
+    number = random.randint(10, 20)
     print(number)
     print(selected_objects)
     data = {
@@ -148,9 +186,10 @@ def process_selection(selected_objects):
             'type': 'json_object'
         },
     )
+
     try:
         content = response.choices[0].message.content
-        return json.loads(content)
+        return json.loads(content,strict=False)
     except json.JSONDecodeError as e:
         print(e)
         return {
@@ -158,7 +197,9 @@ def process_selection(selected_objects):
             "object_list": [],
             "action1": {
                 "script1": "",
-                "script2": ""
+                "script2": "",
+                "with_desk": False,
+                "complex": False
             }
         }
 
@@ -178,7 +219,9 @@ def save_response(response: Dict, save_folder: str):
         json_name = f'O{object_number}_{objects}_{action_number}.json'
         save_value = {
             "script1":value["script1"],
-            "script2":value["script2"]
+            "script2":value["script2"],
+            "with_desk":value["with_desk"],
+            "complex":value["complex"]
         }
         os.makedirs(os.path.join(save_folder,str(object_number),objects),exist_ok=True)
         with open(f'{save_folder}/{str(object_number)}/{objects}/{json_name}', 'w') as f:
@@ -186,6 +229,7 @@ def save_response(response: Dict, save_folder: str):
 
 def main():
     for i in range(100):
+    # for object in object_list:
         objects = choose_object()
         responses = process_selection(objects)
         save_response(responses, save_folder)

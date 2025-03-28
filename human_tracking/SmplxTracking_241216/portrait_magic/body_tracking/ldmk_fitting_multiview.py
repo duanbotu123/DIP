@@ -459,7 +459,7 @@ class LDMK_Fitting_multiview():
     def run_folder(self, imgs_folder, save_folder, debug_dir='none', sub_vis = None):
         # self.tracking_losser.set_folder(imgs_folder)
         # calculate the number of frames
-        self.views = os.listdir(imgs_folder)
+        self.views = sorted(os.listdir(imgs_folder))
         frames = []
         for view in self.views:
             single_view_images_folder = os.path.join(imgs_folder, view, 'ori_imgs')
