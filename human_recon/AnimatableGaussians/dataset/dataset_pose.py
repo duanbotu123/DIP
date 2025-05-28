@@ -36,6 +36,7 @@ class PoseDataset(Dataset):
         super(PoseDataset, self).__init__()
 
         self.data_path = data_path
+        print(data_path)
         self.training = False
 
         self.gender = gender

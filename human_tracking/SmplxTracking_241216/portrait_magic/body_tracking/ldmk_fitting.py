@@ -360,7 +360,7 @@ class LDMK_Fitting():
         
         
         resize_scale = min(1., 400./max(img.shape[:2]))  ### resolution for differentiable rendering loss computation
-        self.mask_size = (int(resize_scale*img.shape[0]), int(resize_scale*img.shape[1]))
+        self.mask_size: tuple[int, int] = (int(resize_scale*img.shape[0]), int(resize_scale*img.shape[1]))
         self.resize_scale = (self.mask_size[0]/float(img.shape[0]), self.mask_size[1]/float(img.shape[1]))
 
         ### Step 2: opt global_orient and transl for every frame

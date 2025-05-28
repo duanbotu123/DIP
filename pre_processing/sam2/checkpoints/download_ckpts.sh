@@ -9,7 +9,6 @@
 # Use either wget or curl to download the checkpoints
 if command -v wget &> /dev/null; then
     CMD="wget"
-    echo $CMD
 elif command -v curl &> /dev/null; then
     CMD="curl -L -O"
 else

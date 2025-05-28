@@ -13,6 +13,7 @@ if __name__ == '__main__':
     parser.add_argument('--video_path', type=str, default='./data/test.mp4')
     parser.add_argument('--output_dir', type=str, default='./data/test_dir')
     parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--render', action='store_true')
     parser.add_argument('--run_mode', type=int, default=0)
     parser.add_argument('--tracking_mode', type=str, default='body')
     # parser.add_argument('--driving_track_path', type=str, default='aa')
@@ -21,4 +22,4 @@ if __name__ == '__main__':
         help='the sub folder lists for visualization')
     args = parser.parse_args()
 
-    process_portrait_video_osot(args.video_path, args.output_dir, with_debug=args.debug, run_mode=args.run_mode, tracking_mode=args.tracking_mode, input_type=args.input_type, sub_vis=args.sub_vis)
+    process_portrait_video_osot(args.video_path, args.output_dir, with_debug=args.debug, run_mode=args.run_mode, tracking_mode=args.tracking_mode, input_type=args.input_type, sub_vis=args.sub_vis, render=args.render)

@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import glob
 
-motion_path = '/home/hlp/data/motion_text/1'
+motion_path = '/home/hlp/data/motion_text/3'
 json_files = glob.glob(f'{motion_path}/**/*.json', recursive=True)
 
 data = []

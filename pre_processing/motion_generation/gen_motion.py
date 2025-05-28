@@ -1,5 +1,4 @@
 import json
-from turtle import st
 from openai import OpenAI
 from typing import Dict, List
 import random
@@ -162,7 +161,7 @@ def choose_object():
     # else:
     #     selected_objects = random.sample(object_list, k=1)
     # return selected_objects
-    selected_objects = random.sample(object_list, k=2)
+    selected_objects = random.sample(object_list, k=3)
     return selected_objects
 
 def process_selection(selected_objects):
@@ -228,11 +227,12 @@ def save_response(response: Dict, save_folder: str):
             json.dump(save_value, f, ensure_ascii=False, indent=2)
 
 def main():
-    for i in range(100):
+    # for i in range(100):
     # for object in object_list:
-        objects = choose_object()
-        responses = process_selection(objects)
-        save_response(responses, save_folder)
+    # objects = choose_object()
+    objects = ["桌子"]
+    responses = process_selection(objects)
+    save_response(responses, save_folder)
 
 if __name__ == "__main__":
     main()

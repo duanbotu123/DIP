@@ -40,7 +40,7 @@ class DWpose():
                     score = scores[0]
                     for j in range(ldmks.shape[0]):
                         if score[j] > .7:
-                            cv2.circle(oriImg, (int(ldmks[j, 0]), int(ldmks[j, 1])), 1, (255, 0, 0), 1, lineType=cv2.FILLED)
+                            cv2.circle(oriImg, (int(ldmks[j, 0]), int(ldmks[j, 1])), 3, (255, 0, 0), 1, lineType=cv2.FILLED)
                     cv2.rectangle(oriImg, (int(det_result[0, 0]), int(det_result[0, 1])), (int(det_result[0, 2]), int(det_result[0, 3])), (0, 0, 255), 3)
                     if video_out is None:
                         video_out = VideoWriter(os.path.join(debug_dir, 'ldmks.mp4'))

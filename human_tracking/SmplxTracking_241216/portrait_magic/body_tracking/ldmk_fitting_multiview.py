@@ -25,6 +25,9 @@ from ..dmm_models.utils.keypoints_mapping import convert_kps
 from ..utils_funcs import VideoWriter
 from ..feature_tracking_all import TrackingLosser
 from ..visualization.visualizer import Renderer, merge, load_image, images_to_video
+from human_body_prior.body_model.body_model import BodyModel
+from human_body_prior.tools.model_loader import load_model
+from human_body_prior.models.vposer_model import VPoser
 
 class LDMK_Fitting_multiview():
     def __init__(self):
@@ -60,18 +63,18 @@ class LDMK_Fitting_multiview():
         self.fixed_keys = [] # other input
 
         self.confidence_scale = torch.ones((1, 133, 1), dtype=torch.float32).to(self.device)
-        # self.confidence_scale[:, [22+62, 22+63, 22+64, 22+66, 22+67, 22+68], :] = 3. ### make mouth accurate
-        # self.confidence_scale[:, [22+38, 22+39, 22+41, 22+42, 22+44, 22+45, 22+47, 22+48], :] = 3. ### make eye accurate
+        self.confidence_scale[:, [22+62, 22+63, 22+64, 22+66, 22+67, 22+68], :] = 0.5 ### make mouth accurate
+        self.confidence_scale[:, [22+38, 22+39, 22+41, 22+42, 22+44, 22+45, 22+47, 22+48], :] = 0.5 ### make eye accurate
         
         self.smoother_buffers, self.smoother_wts, self.smoother_pre_values = {}, {}, {}
-        self.smoother_wts['verts'] = 1e4 * 1e-1 * 0.1
+        self.smoother_wts['verts'] = 1e4 * 1e-1 
         self.smoother_wts['upper_body_poses'] = 1e2 * 0.1
-        self.smoother_wts['lower_body_poses'] = 1e3 * 0.1
+        self.smoother_wts['lower_body_poses'] = 1e2 
         self.smoother_wts['lhand_pose'] = 1e2 * 0.1
         self.smoother_wts['rhand_pose'] = 1e2 * 0.1
         self.smoother_wts['global_orient'] = 1e3 * 1. * 0.1
-        self.smoother_wts['transl'] = 1e3 * 1. * 0.1
-        self.smoother_wts['expr'] = 1. * 0.1
+        self.smoother_wts['transl'] = 1e2 * 1. * 0.1
+        self.smoother_wts['expr'] = 1. * 0.01
         self.smoother_wts['jaw'] = 2. * 0.1
 
         for smoother_key in self.smoother_wts.keys():
@@ -79,6 +82,17 @@ class LDMK_Fitting_multiview():
 
         self.tracking_losser = TrackingLosser()
         self.smplx_sample_ids = None
+        
+        # vposer
+        self.support_dir = "/nas_data/home/hlp/code/4dhoi/HOI_Gen/post_processing/human_body_prior/support_data/dowloads"
+        self.vposer_dir = os.path.join(self.support_dir, 'vposer_v2_05') 
+        self.bm_fname = os.path.join(self.support_dir, 'models_lockedhead/smplx/SMPLX_NEUTRAL.npz')
+        bm = BodyModel(bm_fname=self.bm_fname).to('cuda')
+        vp, ps = load_model(self.vposer_dir, model_code=VPoser,
+                                remove_words_in_model_weights='vp_model.',
+                                disable_grad=True)
+        self.vposer = vp.to(self.device)
+        self.vposer.eval()
         
 
     def cal_loss(self, print_info = None, init_body_pose = None, debug = False):
@@ -106,10 +120,9 @@ class LDMK_Fitting_multiview():
                 paras_dict[para_key] = self.opted_paras_dict[para_key]
         body_joint_num = 21
         batch_size = paras_dict['expr'].shape[0]
-        
         # for key in paras_dict.keys():
         #     print(f'{key}: {paras_dict[key].shape}')
-        #     print(paras_dict[key].device)
+            # print(paras_dict[key].device)
             
         for para_key in self.paras_keys:
             if para_key in self.shared_keys:
@@ -118,11 +131,11 @@ class LDMK_Fitting_multiview():
 
         paras_dict['body_pose'] = torch.cat((paras_dict['upper_body_pose'], paras_dict['lower_body_pose']), dim=1)[:, self.get_body_inds, :].reshape(-1, body_joint_num * 3)
         
-
+        # smplx_out vertice shape : [b, n, 3]
+        # smplx_out face shape : [b, n, 3]
         smplx_out = self.smplx_model.forward(betas = paras_dict['shape'][:1], body_pose = paras_dict['body_pose'], left_hand_pose = paras_dict['lhand_pose'], right_hand_pose = paras_dict['rhand_pose'], jaw_pose = paras_dict['jaw_pose'], expression = paras_dict['expr'], with_iris_return=False, leye_pose=paras_dict['leye_pose'], reye_pose=paras_dict['reye_pose'], global_orient=paras_dict['global_orient'], transl=paras_dict['transl'])
-
         pts3d, confidence_ = convert_kps(smplx_out.joints)
-
+        # print(f'smplx_out.vertices shape: {smplx_out.vertices.shape}')
         # debug_pts3d = np.array(pts3d[0].detach().cpu().numpy())
         # debug_ = '/home/hlp/data/smpl_multi_recon_test/debug'
         # np.save(os.path.join(debug_, 'pts3d.npy'), debug_pts3d)
@@ -162,6 +175,7 @@ class LDMK_Fitting_multiview():
         confidence.requires_grid = False
         confidence_.requires_grad = False
         confidence3d.requires_grad = False
+
         proj_pts_ = proj_pts_mv(pts3d_cams, cam_para_intris) #shape [v, b, n, 2]
         
         # if debug:
@@ -192,7 +206,7 @@ class LDMK_Fitting_multiview():
         loss_smooth = torch.tensor(0., device = loss_ldmks.device)
         loss_feature = torch.tensor(0., device = loss_ldmks.device)
         loss_normal = torch.tensor(0., device = loss_ldmks.device)
-
+        loss_prior = torch.tensor(0., device = loss_ldmks.device)
         loss_pose = torch.tensor(0., device = loss_ldmks.device)
 
         if self.with_losses_dict['smooth']:
@@ -226,49 +240,54 @@ class LDMK_Fitting_multiview():
         
         if init_body_pose is not None:
             loss_pose = torch.mean(torch.abs(paras_dict['body_pose'] - init_body_pose))
-        if print_info is not None:   
-            print(print_info, 'ldmk2d: ', loss_ldmks.item(), 'ldmk3d: ', loss_3d.item(), 'smooth: ', loss_smooth.item(), 'shape: ', loss_shape.item(), 'exp: ', loss_exp.item(), 'pose: ', loss_pose.item())
-
-        loss = loss_ldmks * self.ldmk_ratio * 1. + loss_3d * 50. + loss_shape * 1e-1 * 0.1 + loss_exp * .5 + loss_pose * 1e-1 + loss_smooth * 10.
+            fine_tuned_pose = self.vposer.encode(paras_dict['body_pose']).mean
+            tracking_pose_rec = self.vposer.decode(fine_tuned_pose)['pose_body'].contiguous().view(-1, 63)
+            loss_prior = torch.sum(torch.abs(paras_dict['body_pose'] - tracking_pose_rec))
         
+        if not self.with_losses_dict['mask']:
+            if print_info is not None:
+                print(print_info, 'ldmk: ', loss_ldmks.item(), 'shape: ', loss_shape.item(), 'exp: ', loss_exp.item())
+            return loss_ldmks * 1.  + loss_shape *1e-1 * 0.1 + loss_exp * .5
+        
+        
+        if self.with_losses_dict['mask']:
+            count = 0
+            for view in self.cameras.keys():
+                R = torch.tensor(self.cameras[view]['R'], dtype=torch.float32).to(self.device).reshape(1, 3, 3).expand(batch_size,-1,-1).detach().clone()
+                T = torch.tensor(self.cameras[view]['T'], dtype=torch.float32).to(self.device).reshape(1, 3).expand(batch_size,-1,-1).detach().clone()
+                K = torch.tensor(self.cameras[view]['K'], dtype=torch.float32).to(self.device).reshape(1, 3, 3).detach().clone() 
+                vertices_w = smplx_out.vertices.clone()
+                vertices_cam = torch.matmul(vertices_w, R.transpose(1, 2)) + T
+                render_cam_para = torch.tensor((K[0, 0, 0], K[0, 1, 1], K[0, 0, 2], K[0, 1, 2]),dtype=torch.float32).to(self.device).reshape(1, 4).expand(batch_size, -1).detach()
+                render_cam_para[:, [0, 2]] *= self.resize_scale[1]
+                render_cam_para[:, [1, 3]] *= self.resize_scale[0]
+                # render_masks_all = []
+                # for i in range(batch_size):
+                #     rendered_mask = self.mesh_renderer.forward_differentiable_mask(vertices_cam[i:i+1,...], self.tris, render_cam_para[i:i+1,...], self.mask_size)
+                #     render_masks_all.append(rendered_mask)
+                # rendered_masks = torch.cat(render_masks_all, dim=0)
+                rendered_masks = self.mesh_renderer.forward_differentiable_mask(vertices_cam, self.tris, render_cam_para, self.mask_size)
+                valid_mask = enlarge_human_masks(self.masks[count,...])
+                # print(f'batch_size: {batch_size}')
+                # print(f'vertices_cam shape: {vertices_cam.shape}, vertices_cam device: {vertices_cam.device}, vertices_cam.requires_grad: {vertices_cam.requires_grad}')
+                # print(f'render_cam_para shape: {render_cam_para.shape}, render_cam_para device: {render_cam_para.device}, render_cam_para.requires_grad: {render_cam_para.requires_grad}')
+                # print(f'valid_mask shape: {valid_mask.shape}, valid_mask device: {valid_mask.device}, valid_mask.requires_grad: {valid_mask.requires_grad}')
+                # print(f'rendered_masks shape: {rendered_masks.shape}, rendered_masks device: {rendered_masks.device}, rendered_masks.requires_grad: {rendered_masks.requires_grad}')
+                # print(f'masks shape: {self.masks[count,...].shape}, masks device: {self.masks[count,...].device}, masks.requires_grad: {self.masks[count,...].requires_grad}')
+                # print(f"已分配显存: {torch.cuda.memory_allocated(self.device) / 1024**2:.2f} MB")
+                # print(f"峰值已分配显存: {torch.cuda.max_memory_allocated(self.device) / 1024**2:.2f} MB")
+                # valid_mask[(self.parsing_maps == 14) | (self.parsing_maps == 16)] = 0. #### exclude hair & hat
+                loss_mask += cal_l2_loss(rendered_masks.squeeze(-1) - self.masks[count,...], valid_mask)
+                count += 1
+
+        if print_info is not None:   
+            print(print_info, 'ldmk2d: ', loss_ldmks.item(), 'ldmk3d: ', loss_3d.item(), 'smooth: ', loss_smooth.item(), 'shape: ', loss_shape.item(), 'exp: ', loss_exp.item(), 'pose: ', loss_pose.item(), 'prior: ', loss_prior.item(), 'mask: ', loss_mask.item())
+
+        # loss = loss_ldmks * self.ldmk_ratio * 1. + loss_3d * 50. + loss_shape * 1e-1 * 0.1 + loss_exp * .5 + loss_pose * 1e-1 + loss_smooth * 1.
+        loss = loss_ldmks * self.ldmk_ratio * 1 + loss_shape * 1e-1 * 0.1 + loss_exp * .1 + loss_pose * 1e-1 + loss_smooth * 1. + loss_mask * 10. 
+        # loss = loss_3d + loss_shape * 1e-1 * 0.1 + loss_exp * .1 + loss_pose * 1e-1 + loss_smooth * 1. + loss_prior * 0.1
         return loss
 
-        # if (not self.with_losses_dict['mask']) and (not self.with_losses_dict['feature']):
-        #     if print_info is not None:
-        #         print(print_info, 'ldmk: ', loss_ldmks.item(), 'shape: ', loss_shape.item(), 'exp: ', loss_exp.item())
-        #     return loss_ldmks * 1.  + loss_shape *1e-1 * 0.1 + loss_exp * .5
-
-        # vertices_cam = smplx_out.vertices.clone()
-
-        # # 'label_names':  {'0: background', '1: neck', '2: face', '3: cloth', '4: rr', '5: lr', '6: rb', '7: lb', '8: re', '9: le', '10: nose', 
-        # #                  '11: imouth', '12: llip', '13: ulip', '14: hair', '15: eyeg', '16: hat', '17: earr', '18: neck_l'}       
-        # if self.with_losses_dict['mask']:
-        #     render_cam_para = cam_para.clone()
-        #     render_cam_para[:, [0, 2]] *= self.resize_scale[1]
-        #     render_cam_para[:, [1, 3]] *= self.resize_scale[0]
-        #     rendered_masks, rendered_normals = self.mesh_renderer.forward_differentiable_mask_normal(vertices_cam, self.tris, render_cam_para, self.mask_size)
-        #     valid_mask = enlarge_human_masks(self.masks)
-        #     valid_mask[(self.parsing_maps == 14) | (self.parsing_maps == 16)] = 0. #### exclude hair & hat
-        #     loss_mask = cal_l2_loss(rendered_masks.squeeze(-1) - self.masks, valid_mask)
-
-        #     if self.with_losses_dict['normal']:
-        #         normal_valid_mask = self.masks.clone()
-        #         normal_valid_mask[(self.parsing_maps == 14) | (self.parsing_maps == 16) | (self.parsing_maps == 15) | (self.parsing_maps == 11)] = 0.
-        #         loss_normal = cal_l2_loss(rendered_normals - self.normal_maps.detach(), normal_valid_mask.detach().unsqueeze(-1))
-
-        # if self.with_losses_dict['feature']:
-        #     if self.with_fixed_bary:
-        #         loss_feature, _ = self.tracking_losser.cal_tracking_loss(vertices_cam, cam_para, self.sel_ids, self.tris, self.bary_info)
-        #     else:
-        #         loss_feature, self.bary_info = self.tracking_losser.cal_tracking_loss(vertices_cam, cam_para, self.sel_ids, self.tris)
-        # if print_info is not None:   
-        #     print(print_info, 'mask:', loss_mask.item(), 'ldmk: ', loss_ldmks.item(), 'normal: ', loss_normal.item(), 'feature: ', loss_feature.item(), 'smooth: ', loss_smooth.item(), 'shape: ', loss_shape.item(), 'exp: ', loss_exp.item())
-
-        # ldmk_mask_ratio = loss_ldmks.item() / (loss_mask.item() + 1e-5) * self.ldmk_mask_ratio
-        # ldmk_normal_ratio = loss_ldmks.item() / (loss_mask.item() + 1e-5) * .0
-        # ldmk_feature_ratio = loss_ldmks.item() / (loss_feature.item() + 1e-5) * self.ldmk_feature_ratio
-
-        # return (loss_ldmks*self.ldmk_ratio + loss_mask*ldmk_mask_ratio  + loss_feature*ldmk_feature_ratio + loss_normal*ldmk_normal_ratio) * 1. + loss_shape * 4e-3 * 0.1 + loss_exp *.25 + loss_smooth  + loss_pose * 1e-1
 
     def opt_smplx_paras(self, 
                         paras_dict_init, 
@@ -338,6 +357,7 @@ class LDMK_Fitting_multiview():
         extri = cv2.FileStorage(extri_path, cv2.FILE_STORAGE_READ)
         names_node = extri.getNode("names")
         names = [names_node.at(i).string() for i in range(names_node.size())]
+        print(names)
         extri_params = {name: {
             'R': extri.getNode(f"Rot_{name}").mat().flatten().tolist(),
             'T': extri.getNode(f"T_{name}").mat().flatten().tolist()
@@ -353,21 +373,12 @@ class LDMK_Fitting_multiview():
 
     def load_masks(self, mask_folder, ldmks_names, dst_size):
         masks = []
-        parsing_maps = []
-        normal_maps = []
         for ldmk_name in ldmks_names:
-            mask = cv2.imread(os.path.join(mask_folder, ldmk_name.replace('.wb', '.png')), cv2.IMREAD_UNCHANGED)
+            mask = cv2.imread(os.path.join(mask_folder, ldmk_name.replace('.wb', '.jpg')), cv2.IMREAD_UNCHANGED)
             mask = cv2.resize(mask, (dst_size[1], dst_size[0]))
             # mask[mask<220] = 0
             masks.append(mask)
-            parsing_map = cv2.imread(os.path.join(mask_folder.replace('seg_masks', 'parsing'), ldmk_name.replace('.wb', '.png')), cv2.IMREAD_UNCHANGED)
-            parsing_map = cv2.resize(parsing_map, (dst_size[1], dst_size[0]), interpolation=cv2.INTER_NEAREST)
-            parsing_maps.append(parsing_map)
-            # normal_map = np.load(os.path.join(mask_folder.replace('seg_masks', 'normal'), ldmk_name.replace('.wb', '.npy')))
-            # normal_map = cv2.resize(normal_map, (dst_size[1], dst_size[0]), interpolation=cv2.INTER_NEAREST)
-            normal_map = np.zeros((dst_size[0], dst_size[1], 3), dtype=np.float32)
-            normal_maps.append(normal_map)
-        return np.array(masks), np.array(parsing_maps), np.array(normal_maps)
+        return np.array(masks)
 
     def cal_weights(self):
         pts2d_gt = self.tmp_fixed_dict['pts2d_gt']
@@ -456,18 +467,21 @@ class LDMK_Fitting_multiview():
         cv2.imwrite(outname, image_vis)
         return image_vis
 
-    def run_folder(self, imgs_folder, save_folder, debug_dir='none', sub_vis = None):
+    def run_folder(self, imgs_folder, save_folder, debug_dir='none', sub_vis = None, render = False):
         # self.tracking_losser.set_folder(imgs_folder)
         # calculate the number of frames
         self.views = sorted(os.listdir(imgs_folder))
+        print(imgs_folder)
+        print(self.views)
         frames = []
         for view in self.views:
             single_view_images_folder = os.path.join(imgs_folder, view, 'ori_imgs')
+            img = cv2.imread(os.path.join(single_view_images_folder, os.listdir(single_view_images_folder)[0]))
             image_count = len([f for f in os.listdir(single_view_images_folder) if f.lower().endswith(('.png', '.jpg'))])
             frames.append(image_count)
         print(f'frames: {frames}')
         frames_num = min(frames)
-
+        print(f'tris shape: {self.tris.shape}')
         recon_smplx_params = {'shape': [], 'body_pose': [], 'lhand_pose': [], 'rhand_pose': []}
         ldmks_all_view = []
         recon_folder = imgs_folder.replace('images', 'smplx_recon')
@@ -480,12 +494,11 @@ class LDMK_Fitting_multiview():
             recon_smplx_params['body_pose'].append(np.array(recon_params['body_pose']).reshape(-1))
             recon_smplx_params['lhand_pose'].append(np.array(recon_params['left_hand_pose']).reshape(-1))
             recon_smplx_params['rhand_pose'].append(np.array(recon_params['right_hand_pose']).reshape(-1))
-        print(f'len(recon_smplx_params[shape]): {len(recon_smplx_params["shape"])}')
-        print(f'len(recon_smplx_params[body_pose]): {len(recon_smplx_params["body_pose"])}')
-        print(f'len(recon_smplx_params[lhand_pose]): {len(recon_smplx_params["lhand_pose"])}')
-        print(f'len(recon_smplx_params[rhand_pose]): {len(recon_smplx_params["rhand_pose"])}')
+        # print(f'len(recon_smplx_params[shape]): {len(recon_smplx_params["shape"])}')
+        # print(f'len(recon_smplx_params[body_pose]): {len(recon_smplx_params["body_pose"])}')
+        # print(f'len(recon_smplx_params[lhand_pose]): {len(recon_smplx_params["lhand_pose"])}')
+        # print(f'len(recon_smplx_params[rhand_pose]): {len(recon_smplx_params["rhand_pose"])}')
 
-        # for view in sorted(os.listdir(imgs_folder)):
         for view in self.views:
             single_view_folder = os.path.join(imgs_folder, view)
 
@@ -498,7 +511,11 @@ class LDMK_Fitting_multiview():
                 ldmks = np.loadtxt(os.path.join(ldmks_folder, ldmk_name), dtype=np.float32)
                 ldmks_all.append(ldmks)
             ldmks_all_view.append(ldmks_all)
-        
+        self.ldmks_names = ldmks_names
+        resize_scale = min(1., 400./max(img.shape[:2]))  ### resolution for differentiable rendering loss computation
+        self.mask_size = (int(resize_scale*img.shape[0]), int(resize_scale*img.shape[1]))
+        self.resize_scale = (self.mask_size[0]/float(img.shape[0]), self.mask_size[1]/float(img.shape[1]))
+
         # recon_load_params = torch.load(os.path.join(recon_folder, 'smplx_recon.pth'), map_location = 'cpu')
         # recon_smplx_params['shape'] = recon_load_params['shape']
         # recon_smplx_params['body_pose'] = recon_load_params['body_pose'].reshape(-1, 63)
@@ -581,13 +598,10 @@ class LDMK_Fitting_multiview():
         for key in self.frames_params.keys():
             print(f'{key} : {self.frames_params[key].shape}')
             print(self.frames_params[key].device)
-        # resize_scale = min(1., 400./max(img.shape[:2]))  ### resolution for differentiable rendering loss computation
-        # self.mask_size = (int(resize_scale*img.shape[0]), int(resize_scale*img.shape[1]))
-        # self.resize_scale = (self.mask_size[0]/float(img.shape[0]), self.mask_size[1]/float(img.shape[1]))
+        
 
         ### Step 2: opt global_orient and transl for every frame
         batch_size = 1000
-        video_for_debug = None
         for i in tqdm(range(0, frames_num, batch_size), desc = 'opt global_orient and transl'):
             start_id, end_id = i, min((i+batch_size), ldmks_2d_all_view.shape[1])
             cur_batch_size = end_id - start_id
@@ -606,6 +620,7 @@ class LDMK_Fitting_multiview():
                     dict_for_subinds[key] = self.frames_params[key][cur_ids].clone()
             # masks, _, _ = self.load_masks(imgs_folder.replace('ori_imgs', 'seg_masks'), ldmks_names[cur_ids], self.mask_size)
             # self.masks = torch.as_tensor(masks, device = ldmks_2d_all_view.device).float() / 255.
+
             is_opt_dict = deepcopy(self.is_opt_dict_init)
             is_opt_dict.update({'global_orient': True, 'transl': True})
             with_losses_dict = deepcopy(self.with_losses_dict_init)
@@ -628,7 +643,7 @@ class LDMK_Fitting_multiview():
                     paras_dict[key] = self.frames_params[key][cur_ids].clone()
 
         ### Step 3: opt shared shape and fixed later
-        batch_size = 100
+        batch_size = 50
         cur_ids = np.arange(0, ldmks_2d_all_view.shape[1], max(1, ldmks_2d_all_view.shape[1]//batch_size))
         self.sel_ids = cur_ids
         cur_batch_size = cur_ids.shape[0]
@@ -638,6 +653,14 @@ class LDMK_Fitting_multiview():
                 dict_for_subinds[key] = self.frames_params[key].clone()
             else:
                 dict_for_subinds[key] = self.frames_params[key][cur_ids].clone()
+        masks_all = []
+        for view in self.views:
+            single_view_folder = os.path.join(imgs_folder, view)
+            masks_folder = os.path.join(single_view_folder, 'masks')
+            masks = self.load_masks(masks_folder, ldmks_names[cur_ids], self.mask_size)
+            masks_all.append(masks)
+        self.masks = torch.as_tensor(np.array(masks_all),device=self.device).float() / 255.
+        print(f'masks shape: {self.masks.shape}')
         # masks, _, _ = self.load_masks(imgs_folder.replace('ori_imgs', 'seg_masks'), ldmks_names[cur_ids], self.mask_size)
         # self.masks = torch.as_tensor(masks, device = ldmks_2d_all_view.device).float() / 255.
 
@@ -654,7 +677,7 @@ class LDMK_Fitting_multiview():
             #     self.frames_params[key][cur_ids] = dict_for_subinds[key].clone()
 
         ### Step 4: fixed shared and opt frame dependent params
-        batch_size = 1000
+        batch_size = 50
         video_for_debug = None
         for i in tqdm(range(0, frames_num, batch_size), desc = 'opt frames dependent params'):
             start_id, end_id = i, min((i+batch_size), ldmks_2d_all_view.shape[1])
@@ -674,7 +697,14 @@ class LDMK_Fitting_multiview():
                     dict_for_subinds[key] = self.frames_params[key][cur_ids].clone()
             # masks, _, _ = self.load_masks(imgs_folder.replace('ori_imgs', 'seg_masks'), ldmks_names[cur_ids], self.mask_size)
             # self.masks = torch.as_tensor(masks, device = ldmks_2d.device).float() / 255.
-
+            masks_all = []
+            for view in self.views:
+                single_view_folder = os.path.join(imgs_folder, view)
+                masks_folder = os.path.join(single_view_folder, 'masks')
+                masks = self.load_masks(masks_folder, ldmks_names[cur_ids], self.mask_size)
+                masks_all.append(masks)
+            self.masks = torch.as_tensor(np.array(masks_all),device=self.device).float() / 255.
+            print(f'masks shape: {self.masks.shape}')
             is_opt_dict = deepcopy(self.is_opt_dict_init)
             for key in self.paras_keys:
                 if key not in self.shared_keys:
@@ -735,14 +765,17 @@ class LDMK_Fitting_multiview():
         np.savez(os.path.join(save_folder, 'smpl_params.npz'), **save_dict)
 
         # visualization
-        for nf in tqdm(range(1,frames_num), desc='render'):
-            images = load_image(imgs_folder, sub_vis, nf)
-            smplx_out = self.smplx_model.forward(betas = paras_dict['shape'][nf:nf+1], body_pose = paras_dict['body_pose'][nf:nf+1], left_hand_pose = paras_dict['lhand_pose'][nf:nf+1], right_hand_pose = paras_dict['rhand_pose'][nf:nf+1], jaw_pose = paras_dict['jaw_pose'][nf:nf+1], expression = paras_dict['expr'][nf:nf+1], with_iris_return=False, leye_pose=paras_dict['leye_pose'][nf:nf+1], reye_pose=paras_dict['reye_pose'][nf:nf+1], global_orient=paras_dict['global_orient'][nf:nf+1], transl=paras_dict['transl'][nf:nf+1])
-            vertice = smplx_out.vertices.squeeze().detach().cpu().numpy()
-            faces = self.tris.squeeze().detach().cpu().numpy()
-            self.vis_smpl(vertice, faces, images, save_folder, nf, sub_vis, add_back=True)
-        images_folder = os.path.join(save_folder, 'smplx')
-        images_to_video(images_folder, os.path.join(save_folder, 'smplx.mp4'))
+        if render:
+            for nf in tqdm(range(1,frames_num), desc='render'):
+                if nf % 2 != 0:
+                    continue
+                images = load_image(imgs_folder, sub_vis, nf)
+                smplx_out = self.smplx_model.forward(betas = paras_dict['shape'][nf:nf+1], body_pose = paras_dict['body_pose'][nf:nf+1], left_hand_pose = paras_dict['lhand_pose'][nf:nf+1], right_hand_pose = paras_dict['rhand_pose'][nf:nf+1], jaw_pose = paras_dict['jaw_pose'][nf:nf+1], expression = paras_dict['expr'][nf:nf+1], with_iris_return=False, leye_pose=paras_dict['leye_pose'][nf:nf+1], reye_pose=paras_dict['reye_pose'][nf:nf+1], global_orient=paras_dict['global_orient'][nf:nf+1], transl=paras_dict['transl'][nf:nf+1])
+                vertice = smplx_out.vertices.squeeze().detach().cpu().numpy()
+                faces = self.tris.squeeze().detach().cpu().numpy()
+                self.vis_smpl(vertice, faces, images, save_folder, nf, sub_vis, add_back=True)
+            images_folder = os.path.join(save_folder, 'smplx')
+            images_to_video(images_folder, os.path.join(save_folder, 'smplx.mp4'))
 
 
 

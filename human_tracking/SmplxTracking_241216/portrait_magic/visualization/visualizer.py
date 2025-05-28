@@ -380,13 +380,23 @@ def get_colors(pid):
         return colors_table[pid]
 
 def images_to_video(image_folder, output_video, fps=30):
+    # 1. 创建输入文件列表
+    list_file = os.path.join(image_folder, "file_list.txt")
+    with open(list_file, "w") as f:
+        for img_name in sorted(os.listdir(image_folder)):
+            if img_name.endswith(".jpg"):
+                f.write(f"file '{os.path.join(image_folder, img_name)}'\n")
+
+    # 2. 使用 ffmpeg 从列表读取
     ffmpeg_cmd = [
-    "ffmpeg",
-    "-framerate", str(fps),          # 设置帧率
-    "-i", f"{image_folder}/%06d.jpg",  # 读取按编号命名的图片
-    "-c:v", "libx264",               # 使用 H.264 编码
-    "-pix_fmt", "yuv420p",           # 确保兼容性
-    output_video
+        "ffmpeg",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", list_file,
+        "-framerate", str(fps),
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
+        output_video
     ]
 
     subprocess.run(ffmpeg_cmd)

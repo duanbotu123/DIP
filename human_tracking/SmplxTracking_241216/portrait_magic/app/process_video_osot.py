@@ -7,7 +7,7 @@ from ..sapiens_pose import PoseEstimator
 
 # import xxx
 
-def process_portrait_video_osot(video_path: str, save_dir: str, with_debug = False, run_mode = 0, tracking_mode='body', input_type='video', sub_vis = None):
+def process_portrait_video_osot(video_path: str, save_dir: str, with_debug = False, run_mode = 0, tracking_mode='body', input_type='video', sub_vis = None, render = False):
     """
     Process a video to extract recon infos and save them to save_dir
     """
@@ -93,7 +93,7 @@ def process_portrait_video_osot(video_path: str, save_dir: str, with_debug = Fal
             ldmk_fiter = LDMK_Fitting_multiview()
             body_track_dir = save_dir.replace('images','body_track')
             os.makedirs(body_track_dir, exist_ok=True)
-            ldmk_fiter.run_folder(save_dir, body_track_dir, debug_path, sub_vis)
+            ldmk_fiter.run_folder(save_dir, body_track_dir, debug_path, sub_vis, render)
         elif input_type != 'multi_view':
             ldmk_fiter = LDMK_Fitting()
             body_track_dir = os.path.join(save_dir, "body_track")
