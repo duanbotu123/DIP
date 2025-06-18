@@ -76,5 +76,5 @@ def cal_smooth_loss(x, with_grad = False, attn_weight = None):
     if attn_weight is None:
         attn_weight = torch.ones_like(x[:1])
     if not with_grad:
-        return torch.sum(((x[1:-1] - (x[2:] + x[:-2])*.5)**2) * attn_weight) / (torch.mean(attn_weight) + 1e-5)
-    return torch.sum((torch.abs(x[:-1] - x[1:])) * attn_weight) / (torch.mean(attn_weight) + 1e-5)
+        return torch.mean(((x[1:-1] - (x[2:] + x[:-2])*.5)**2) * attn_weight) / (torch.mean(attn_weight) + 1e-5)
+    return torch.mean((torch.abs(x[:-1] - x[1:])) * attn_weight) / (torch.mean(attn_weight) + 1e-5)

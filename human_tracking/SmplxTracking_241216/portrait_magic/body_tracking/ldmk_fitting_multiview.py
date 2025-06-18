@@ -69,7 +69,7 @@ class LDMK_Fitting_multiview():
         self.smoother_buffers, self.smoother_wts, self.smoother_pre_values = {}, {}, {}
         self.smoother_wts['verts'] = 1e4 * 1e-1 
         self.smoother_wts['upper_body_poses'] = 1e2 * 0.1
-        self.smoother_wts['lower_body_poses'] = 1e2 
+        self.smoother_wts['lower_body_poses'] = 1e2  * 0.1
         self.smoother_wts['lhand_pose'] = 1e2 * 0.1
         self.smoother_wts['rhand_pose'] = 1e2 * 0.1
         self.smoother_wts['global_orient'] = 1e3 * 1. * 0.1
@@ -195,7 +195,8 @@ class LDMK_Fitting_multiview():
         #                 np.save(os.path.join(debug_, id, opt_type, f'proj_pts_gt.npy'), pts2d_gt[i].detach().cpu().numpy())
 
         loss = torch.tensor(0., device = self.device)
-        loss_ldmks = torch.mean(cal_euclidean_distance_mv(x1=proj_pts_, x2=pts2d_gt, confidence=confidence, weights=weights))
+        # loss_ldmks = torch.mean(cal_euclidean_distance_mv(x1=proj_pts_, x2=pts2d_gt, confidence=confidence, weights=weights))
+        loss_ldmks = torch.mean(cal_euclidean_distance_mv(x1=proj_pts_, x2=pts2d_gt, confidence=confidence))
         loss_3d = torch.mean(cal_euclidean_distance(x1=pts3d_gt, x2=pts3d, confidence=confidence3d.unsqueeze(-1)))
         # print(f'pts3d shape: {pts3d.shape}')
         # print(f'pts3d_gt shape: {pts3d_gt.shape}')
@@ -242,7 +243,7 @@ class LDMK_Fitting_multiview():
             loss_pose = torch.mean(torch.abs(paras_dict['body_pose'] - init_body_pose))
             fine_tuned_pose = self.vposer.encode(paras_dict['body_pose']).mean
             tracking_pose_rec = self.vposer.decode(fine_tuned_pose)['pose_body'].contiguous().view(-1, 63)
-            loss_prior = torch.sum(torch.abs(paras_dict['body_pose'] - tracking_pose_rec))
+            loss_prior = torch.mean(torch.abs(paras_dict['body_pose'] - tracking_pose_rec))
         
         if not self.with_losses_dict['mask']:
             if print_info is not None:
@@ -284,7 +285,7 @@ class LDMK_Fitting_multiview():
             print(print_info, 'ldmk2d: ', loss_ldmks.item(), 'ldmk3d: ', loss_3d.item(), 'smooth: ', loss_smooth.item(), 'shape: ', loss_shape.item(), 'exp: ', loss_exp.item(), 'pose: ', loss_pose.item(), 'prior: ', loss_prior.item(), 'mask: ', loss_mask.item())
 
         # loss = loss_ldmks * self.ldmk_ratio * 1. + loss_3d * 50. + loss_shape * 1e-1 * 0.1 + loss_exp * .5 + loss_pose * 1e-1 + loss_smooth * 1.
-        loss = loss_ldmks * self.ldmk_ratio * 1 + loss_shape * 1e-1 * 0.1 + loss_exp * .1 + loss_pose * 1e-1 + loss_smooth * 1. + loss_mask * 10. 
+        loss = loss_ldmks * self.ldmk_ratio * 1 + loss_shape * 1e-1 * 0.1 + loss_exp * .1 + loss_smooth * 0.01
         # loss = loss_3d + loss_shape * 1e-1 * 0.1 + loss_exp * .1 + loss_pose * 1e-1 + loss_smooth * 1. + loss_prior * 0.1
         return loss
 

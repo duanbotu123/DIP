@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=3
 export VIDEO_DIR="/nas_data/dataset/4dhoi/25_04_03/person04"
 export FRAME_RATE=60
 
@@ -69,23 +69,24 @@ port_offset_counter=0
 #     port_offset_counter=$((port_offset_counter + 1))
 # done
 
-echo "Searching for 'motion*' directories in: $VIDEO_DIR"
-# 1. 将所有找到的 'motion*' 目录路径保存到一个数组
-mapfile -t motion_dirs_array < <(find "$VIDEO_DIR" -mindepth 1 -maxdepth 1 -type d -name "motion*")
+# echo "Searching for 'motion*' directories in: $VIDEO_DIR"
+# # 1. 将所有找到的 'motion*' 目录路径保存到一个数组
+# mapfile -t motion_dirs_array < <(find "$VIDEO_DIR" -mindepth 1 -maxdepth 1 -type d -name "motion*")
 
-# 检查是否找到了任何目录
-if [ ${#motion_dirs_array[@]} -eq 0 ]; then
-    echo "No directories matching 'motion*' found in '$VIDEO_DIR'."
-    exit 0
-fi
+# # 检查是否找到了任何目录
+# if [ ${#motion_dirs_array[@]} -eq 0 ]; then
+#     echo "No directories matching 'motion*' found in '$VIDEO_DIR'."
+#     exit 0
+# fi
 
-# 2. 打印数组中的所有路径
-echo "Found the following directories to process:"
-printf '%s\n' "${motion_dirs_array[@]}"
-echo "--------------------------------------------------"
+# # 2. 打印数组中的所有路径
+# echo "Found the following directories to process:"
+# printf '%s\n' "${motion_dirs_array[@]}"
+# echo "--------------------------------------------------"
 
-# 3. 遍历数组中的每个路径进行处理
-for motion_dir in "${motion_dirs_array[@]}"; do
+# # 3. 遍历数组中的每个路径进行处理
+# for motion_dir in "${motion_dirs_array[@]}"; do
+    motion_dir=/home/hlp/data/vton/zf
     current_master_port=$((29400 + port_offset_counter))
     echo "Processing motion directory: $motion_dir with master_port: $current_master_port"
     
@@ -134,5 +135,5 @@ for motion_dir in "${motion_dirs_array[@]}"; do
     python main_video_osot.py --output_dir $motion_dir/images --run_mode 1 --tracking_mode body --input_type multi_view --sub_vis 01 09 14 24 28 31 --render
     mkdir -p $motion_dir/thuman4/
     cp $motion_dir/body_track/smpl_params.npz $motion_dir/thuman4/
-done
+# done
 

@@ -239,11 +239,12 @@ def load_video_frames_from_jpg_images(
             "where `-q:v` generates high-quality JPEG frames and `-start_number 0` asks "
             "ffmpeg to start the JPEG file from 00000.jpg."
         )
-
+    print(f"Loading video frames from {jpg_folder}...")
+    
     frame_names = [
         p
         for p in os.listdir(jpg_folder)
-        if os.path.splitext(p)[-1] in [".jpg", ".jpeg", ".JPG", ".JPEG"]
+        if os.path.splitext(p)[-1] in [".jpg", ".jpeg", ".JPG", ".JPEG", '.png', '.PNG']
     ]
     frame_names.sort(key=lambda p: int(os.path.splitext(p)[0]))
     num_frames = len(frame_names)
