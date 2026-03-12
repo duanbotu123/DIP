@@ -1,76 +1,63 @@
-# Assignment 01 - Image Warping
+# 作业 01 - 图像变形
 
-This repository folder is an implementation of DIP-Teaching Assignment 01 (Image Warping).
 
-## Requirements
+## 环境要求
 
-To install requirements:
+安装依赖：
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-Dependencies are listed in `requirements.txt`.
+依赖列表见 `requirements.txt`。
 
-## Training
+## 评测
 
-This assignment does not include model training. Instead, you can generate deterministic visual artifacts with:
-
-```bash
-python generate_results.py
-```
-
-## Evaluation
-
-To run interactive evaluation for global geometric transformation:
+运行全局几何变换交互界面：
 
 ```bash
 python run_global_transform.py
 ```
 
-To run interactive evaluation for point-guided deformation:
+运行点引导形变交互界面：
 
 ```bash
 python run_point_transform.py
 ```
+。
 
-To run a quick non-interactive verification:
+## 结果
 
-```bash
-python -m py_compile run_global_transform.py run_point_transform.py generate_results.py
-python -c "import run_global_transform as g; import run_point_transform as p; import generate_results as r; print('imports_ok')"
-```
-
-## Pre-trained Models
-
-Not applicable for this assignment.
-
-## Results
-
-Run:
+运行：
 
 ```bash
 python generate_results.py
 ```
 
-Generated files are saved in `results/`.
+生成文件保存在 `results/`。
 
-| Task | Artifact | Reproduction Command |
+| 任务 | 结果文件 | 复现命令 |
 | --- | --- | --- |
-| Global transform | `results/global_input.png` | `python generate_results.py` |
-| Global transform | `results/global_scale_1p4.png` | `python generate_results.py` |
-| Global transform | `results/global_rotate_35.png` | `python generate_results.py` |
-| Global transform | `results/global_translate.png` | `python generate_results.py` |
-| Global transform | `results/global_flip.png` | `python generate_results.py` |
-| Global transform | `results/global_combo.png` | `python generate_results.py` |
-| Point deformation | `results/point_controls.png` | `python generate_results.py` |
-| Point deformation | `results/point_warped.png` | `python generate_results.py` |
-| Point deformation | `results/point_before_after.png` | `python generate_results.py` |
+| 全局变换 | `results/global_input.png` | `python generate_results.py` |
+| 全局变换 | `results/global_scale_1p4.png` | `python generate_results.py` |
+| 全局变换 | `results/global_rotate_35.png` | `python generate_results.py` |
+| 全局变换 | `results/global_translate.png` | `python generate_results.py` |
+| 全局变换 | `results/global_flip.png` | `python generate_results.py` |
+| 全局变换 | `results/global_combo.png` | `python generate_results.py` |
+| 点引导形变 | `results/point_controls.png` | `python generate_results.py` |
+| 点引导形变 | `results/point_warped.png` | `python generate_results.py` |
+| 点引导形变 | `results/point_before_after.png` | `python generate_results.py` |
 
-## Contributing
+### 参考代码
+我这次主要参考了以下论文与代码来源：
 
-This folder is coursework submission content. For updates, keep changes reproducible and include:
+- 作业里给出的核心参考论文 ，本作业用RBF完成
+  - RBF: Image Warping by Radial Basis Functions  
+    https://www.sci.utah.edu/~gerig/CS6640-F2010/Project3/Arad-1995.pdf
 
-1. implementation files,
-2. commands to reproduce outputs,
-3. updated result artifacts and notes in `README_submission.md`.
+- 工程/API参考文档  
+  - OpenCV 几何变换文档  
+    https://docs.opencv.org/4.x/da/d6e/tutorial_py_geometric_transformations.html  
+  - Gradio 官方文档  
+    https://www.gradio.app/
+
