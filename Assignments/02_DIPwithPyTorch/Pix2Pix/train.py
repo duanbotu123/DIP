@@ -9,6 +9,9 @@ from facades_dataset import FacadesDataset
 from FCN_network import FullyConvNetwork
 from torch.optim.lr_scheduler import StepLR
 
+
+
+
 def tensor_to_image(tensor):
     """
     Convert a PyTorch tensor to a NumPy array suitable for OpenCV.

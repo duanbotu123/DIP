@@ -12,6 +12,8 @@ class FacadesDataset(Dataset):
         with open(list_file, 'r') as file:
             self.image_filenames = [line.strip() for line in file]
         
+
+        
     def __len__(self):
         # Return the total number of images
         return len(self.image_filenames)

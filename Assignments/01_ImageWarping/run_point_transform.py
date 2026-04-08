@@ -15,6 +15,9 @@ def upload_image(img):
     image = img
     return img
 
+
+
+
 # 记录点击点事件，并标记点在图像上，同时在成对的点间画箭头
 def record_points(evt: gr.SelectData):
     global points_src, points_dst, image

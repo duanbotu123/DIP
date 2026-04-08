@@ -9,6 +9,8 @@ def to_3x3(affine_matrix):
 # Function to apply transformations based on user inputs
 def apply_transform(image, scale, rotation, translation_x, translation_y, flip_horizontal):
 
+
+
     # Convert the image from PIL format to a NumPy array
     image = np.array(image)
     # Pad the image to avoid boundary issues

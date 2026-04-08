@@ -16,6 +16,8 @@ class FullyConvNetwork(nn.Module):
         ### FILL: add ConvTranspose Layers
         ### None: since last layer outputs RGB channels, may need specific activation function
 
+
+
     def forward(self, x):
         # Encoder forward pass
         
