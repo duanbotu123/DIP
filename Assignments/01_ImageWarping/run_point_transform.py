@@ -50,9 +50,47 @@ def point_guided_deformation(image, source_pts, target_pts, alpha=1.0, eps=1e-8)
     ------
         A deformed image.
     """
-    
-    warped_image = np.array(image)
-    ### FILL: 基于MLS or RBF 实现 image warping
+    h, w = image.shape[:2]
+    src = source_pts.astype(np.float32)
+    dst = target_pts.astype(np.float32)
+    n = len(src)
+
+    yy, xx = np.meshgrid(np.arange(h), np.arange(w))
+    v = np.stack([xx, yy], axis=-1).astype(np.float32).reshape(-1, 2)
+    N = v.shape[0]
+
+    diff = v[:, np.newaxis, :] - src[np.newaxis, :, :]
+    dist_sq = np.sum(diff ** 2, axis=-1)
+    w = 1.0 / (dist_sq + eps)
+    w_sum = np.sum(w, axis=-1, keepdims=True)
+
+    p_star = np.sum(w[:, :, np.newaxis] * src[np.newaxis, :, :], axis=1) / w_sum
+    q_star = np.sum(w[:, :, np.newaxis] * dst[np.newaxis, :, :], axis=1) / w_sum
+
+    p_hat = src[np.newaxis, :, :] - p_star[:, np.newaxis, :]
+    q_hat = dst[np.newaxis, :, :] - q_star[:, np.newaxis, :]
+
+    A = np.sum(w[:, :, np.newaxis, np.newaxis] *
+               q_hat[:, :, :, np.newaxis] * p_hat[:, :, np.newaxis, :], axis=1)
+    B = np.sum(w[:, :, np.newaxis, np.newaxis] *
+               p_hat[:, :, :, np.newaxis] * p_hat[:, :, np.newaxis, :], axis=1)
+
+    det = B[:, 0, 0] * B[:, 1, 1] - B[:, 0, 1] * B[:, 1, 0]
+    det = np.maximum(det, eps)
+    B_inv = np.zeros_like(B)
+    B_inv[:, 0, 0] = B[:, 1, 1] / det
+    B_inv[:, 0, 1] = -B[:, 0, 1] / det
+    B_inv[:, 1, 0] = -B[:, 1, 0] / det
+    B_inv[:, 1, 1] = B[:, 0, 0] / det
+
+    M = B_inv @ A
+
+    fv = np.einsum('ikj,ij->ik', M, v - p_star) + q_star
+
+    map_x = fv[:, 0].reshape(h, w).astype(np.float32)
+    map_y = fv[:, 1].reshape(h, w).astype(np.float32)
+
+    warped_image = cv2.remap(image, map_x, map_y, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
 
     return warped_image
 
